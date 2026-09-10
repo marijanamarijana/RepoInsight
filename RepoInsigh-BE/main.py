@@ -1,0 +1,36 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from routers.analysis import router as analysis_router
+
+app = FastAPI(
+    title="Git Repo Analyzer",
+    description="Analyze any public GitHub repository via the GitHub REST API.",
+    version="0.1.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],   # not for prod
+    allow_methods=["GET"],
+    allow_headers=["*"],
+)
+
+app.include_router(analysis_router)
+
+
+@app.get("/", tags=["meta"])
+async def root():
+    return {
+        "service": "Git Repo Analyzer",
+        "version": "0.1.0",
+        "docs": "/docs",
+        "usage": "GET /analyze/full?repo=facebook/react&token=ghp_...",
+    }
+
+
+@app.get("/health", tags=["meta"])
+async def health():
+    return {"status": "ok"}
