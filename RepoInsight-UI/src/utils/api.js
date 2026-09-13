@@ -1,4 +1,4 @@
-const BASE = 'http://localhost:8000'
+const BASE = 'http://localhost:8000/graphQL'
 
 export async function analyzeRepo(repo, token) {
   const params = new URLSearchParams({ repo })

@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from routers.analysis import router as analysis_router
+from routers.graphQL_analysis_router import router as graphQL_router
 
 app = FastAPI(
     title="Git Repo Analyzer",
@@ -19,7 +20,7 @@ app.add_middleware(
 )
 
 app.include_router(analysis_router)
-
+app.include_router(graphQL_router)
 
 @app.get("/", tags=["meta"])
 async def root():
