@@ -26,6 +26,17 @@ from models.analysis import (
     RepoSummary,
     WeeklyActivity,
 )
+from services.analysis_sampling import (
+    CLOSED_ISSUES,
+    CLOSED_PR_FIRST_COMMENT_SAMPLE,
+    CLOSED_PULL_REQUESTS,
+    CONTRIBUTORS,
+    OPEN_ISSUES,
+    OPEN_PULL_REQUESTS,
+    RECENT_COMMITS,
+    RELEASES,
+    max_pages_for,
+)
 from services.github_client import GitHubClient
 
 logger = logging.getLogger(__name__)
@@ -101,8 +112,9 @@ async def fetch_languages(client: GitHubClient, owner: str, repo: str) -> Langua
 async def fetch_contributors(client: GitHubClient, owner: str, repo: str) -> ContributorAnalysis:
     raw = await client.get_paginated(
         f"/repos/{owner}/{repo}/contributors",
-        max_pages=2,
+        max_pages=max_pages_for(CONTRIBUTORS),
     )
+    raw = raw[:CONTRIBUTORS]
     total_commits = sum(c["contributions"] for c in raw) or 1
 
     entries = [
@@ -174,8 +186,9 @@ async def fetch_commit_activity(client: GitHubClient, owner: str, repo: str) -> 
 async def fetch_recent_commits(client: GitHubClient, owner: str, repo: str) -> RecentCommitsAnalysis:
     raw = await client.get_paginated(
         f"/repos/{owner}/{repo}/commits",
-        max_pages=2,
+        max_pages=max_pages_for(RECENT_COMMITS),
     )
+    raw = raw[:RECENT_COMMITS]
     if not raw:
         return RecentCommitsAnalysis(
             total_sampled=0, avg_message_length=0,
@@ -213,17 +226,17 @@ async def fetch_issues(
         client.get_paginated(
             f"/repos/{owner}/{repo}/issues",
             params={"state": "closed", "sort": "updated"},
-            max_pages=2,
+            max_pages=max_pages_for(CLOSED_ISSUES),
         ),
         client.get_paginated(
             f"/repos/{owner}/{repo}/issues",
             params={"state": "open", "sort": "updated"},
-            max_pages=1,
+            max_pages=max_pages_for(OPEN_ISSUES),
         ),
     )
 
-    closed_issues = [i for i in closed_raw if "pull_request" not in i]
-    open_issues = [i for i in open_raw if "pull_request" not in i]
+    closed_issues = [i for i in closed_raw if "pull_request" not in i][:CLOSED_ISSUES]
+    open_issues = [i for i in open_raw if "pull_request" not in i][:OPEN_ISSUES]
 
     close_times: list[float] = []
     for issue in closed_issues:
@@ -261,14 +274,17 @@ async def fetch_pull_requests(client: GitHubClient, owner: str, repo: str) -> Pu
         client.get_paginated(
             f"/repos/{owner}/{repo}/pulls",
             params={"state": "closed", "sort": "updated"},
-            max_pages=2,
+            max_pages=max_pages_for(CLOSED_PULL_REQUESTS),
         ),
         client.get_paginated(
             f"/repos/{owner}/{repo}/pulls",
-            params={"state": "open"},
-            max_pages=1,
+            params={"state": "open", "sort": "updated"},
+            max_pages=max_pages_for(OPEN_PULL_REQUESTS),
         ),
     )
+
+    closed_raw = closed_raw[:CLOSED_PULL_REQUESTS]
+    open_raw = open_raw[:OPEN_PULL_REQUESTS]
 
     merged   = [pr for pr in closed_raw if pr.get("merged_at")]
     rejected = [pr for pr in closed_raw if not pr.get("merged_at")]
@@ -284,7 +300,7 @@ async def fetch_pull_requests(client: GitHubClient, owner: str, repo: str) -> Pu
     med_merge = round((_median(merge_times) or 0) / 24, 2) if merge_times else None
 
     response_times: list[float] = []
-    sample_prs = closed_raw[:10]
+    sample_prs = closed_raw[:CLOSED_PR_FIRST_COMMENT_SAMPLE]
     comment_tasks = [
         client.get(
             f"/repos/{owner}/{repo}/issues/{pr['number']}/comments",
@@ -313,7 +329,11 @@ async def fetch_pull_requests(client: GitHubClient, owner: str, repo: str) -> Pu
 
 
 async def fetch_releases(client: GitHubClient, owner: str, repo: str) -> ReleasesAnalysis:
-    raw = await client.get_paginated(f"/repos/{owner}/{repo}/releases", max_pages=1)
+    raw = await client.get_paginated(
+        f"/repos/{owner}/{repo}/releases",
+        max_pages=max_pages_for(RELEASES),
+    )
+    raw = raw[:RELEASES]
 
     entries = [
         ReleaseEntry(

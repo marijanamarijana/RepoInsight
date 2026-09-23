@@ -2,7 +2,8 @@ from __future__ import annotations
 from typing import Annotated, Optional
 from fastapi import APIRouter, HTTPException, Query
 from models.analysis import FullAnalysis, RateLimitStatus
-from services.graphQL.analyzer import fetch_rate_limit, run_full_analysis
+from services.full_analysis import run_full_analysis
+from services.graphQL.analyzer import fetch_rate_limit
 from services.graphQL.github_client import GitHubClient
 
 router = APIRouter(
@@ -66,16 +67,15 @@ async def full_analysis(
 ):
     owner, repo_name = _owner_repo(repo)
 
-    async with GitHubClient(token=token) as client:
-        try:
-            return await run_full_analysis(
-                client,
-                owner,
-                repo_name,
-            )
-
-        except Exception as exc:
-            _handle_github_error(exc)
+    try:
+        return await run_full_analysis(
+            owner,
+            repo_name,
+            token=token,
+            prefer_graphql=True,
+        )
+    except Exception as exc:
+        _handle_github_error(exc)
 
 
 @router.get(

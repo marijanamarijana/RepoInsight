@@ -25,6 +25,7 @@ from models.analysis import (
     RepoSummary,
     WeeklyActivity,
 )
+from services.analysis_sampling import CLOSED_PR_FIRST_COMMENT_SAMPLE, CONTRIBUTORS
 from services.graphQL.github_client import GitHubClient
 from services.graphQL.query_for_graphQL_full_analysis import REPOSITORY_ANALYSIS_QUERY
 
@@ -357,7 +358,7 @@ def parse_pull_requests(data: dict[str, Any]) -> PullRequestsAnalysis:
 
     response_times: list[float] = []
 
-    for pr in closed_prs[:10]:
+    for pr in closed_prs[:CLOSED_PR_FIRST_COMMENT_SAMPLE]:
         comments = pr["comments"]["nodes"]
         if not comments:
             continue
@@ -426,11 +427,11 @@ def parse_releases(data: dict[str, Any]) -> ReleasesAnalysis:
     )
 
 async def fetch_contributors(client: GitHubClient, owner: str, repo: str) -> ContributorAnalysis:
-    raw = await client.get(f"/repos/{owner}/{repo}/contributors",
-        params={
-            "per_page": 100,
-        },
+    raw = await client.get(
+        f"/repos/{owner}/{repo}/contributors",
+        params={"per_page": CONTRIBUTORS},
     )
+    raw = raw[:CONTRIBUTORS]
     total_commits = (sum(c["contributions"] for c in raw) or 1)
 
     entries = [
