@@ -1,12 +1,13 @@
 import React from 'react'
-import { Card, SectionLabel, Row, Divider } from './UI'
+import { Card, CardSection, Row, Divider } from './UI'
+import { RELEASES } from '../constants/sampling'
 
-export function ReleasesCard({ data }) {
+export function ReleasesCard({ data, className = '' }) {
   const { releases } = data
 
   return (
-    <Card>
-      <SectionLabel>releases</SectionLabel>
+    <Card className={className}>
+      <CardSection title="releases" finePrint={`last ${RELEASES} releases`} />
 
       <div style={{ display: 'flex', gap: 20, marginBottom: 14 }}>
         <div>
@@ -52,7 +53,7 @@ export function ReleasesCard({ data }) {
   )
 }
 
-export function CodeFrequencyCard({ data }) {
+export function CodeFrequencyCard({ data, className = '' }) {
   const { code_frequency: cf } = data
   const maxVal = Math.max(...cf.recent_weeks.flatMap(w => [w.additions, w.deletions]), 1)
 
@@ -63,8 +64,8 @@ export function CodeFrequencyCard({ data }) {
   }
 
   return (
-    <Card>
-      <SectionLabel>code frequency</SectionLabel>
+    <Card className={className}>
+      <CardSection title="code frequency" finePrint="52 weeks · GitHub code frequency API" />
 
       <div style={{ display: 'flex', gap: 20, marginBottom: 14 }}>
         <div>

@@ -1,5 +1,6 @@
 import React from 'react'
-import { Card, Badge } from './UI'
+import { Card, Badge, SampleFinePrint } from './UI'
+import { REPOSITORY_TOPICS } from '../constants/sampling'
 
 function fmt(n) {
   if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M'
@@ -7,14 +8,14 @@ function fmt(n) {
   return n.toString()
 }
 
-export default function OverviewCard({ data }) {
+export default function OverviewCard({ data, className = '' }) {
   const { overview } = data
   const idleColor = overview.days_since_last_push > 180
     ? 'var(--red)' : overview.days_since_last_push > 30
     ? 'var(--yellow)' : 'var(--green)'
 
   return (
-    <Card style={{ marginBottom: 24 }}>
+    <Card className={className}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
         <div style={{ flex: 1, minWidth: 260 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
@@ -64,6 +65,8 @@ export default function OverviewCard({ data }) {
 
       <div style={{ marginTop: 14, fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
         created {overview.created_at.slice(0, 10)} · last push {overview.last_pushed_at.slice(0, 10)}
+        <span style={{ margin: '0 6px', opacity: 0.5 }}>·</span>
+        <SampleFinePrint>up to {REPOSITORY_TOPICS} repository topics</SampleFinePrint>
       </div>
     </Card>
   )

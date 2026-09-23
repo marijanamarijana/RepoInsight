@@ -1,5 +1,6 @@
 import React from 'react'
-import { Card, SectionLabel } from './UI'
+import { Card, CardSection } from './UI'
+import { CONTRIBUTORS, CLOSED_PULL_REQUESTS, CLOSED_ISSUES } from '../constants/sampling'
 
 function scoreHealth(summary) {
   let score = 0
@@ -29,7 +30,7 @@ function scoreLabel(s) {
   return 'Needs attention'
 }
 
-export default function SummaryCard({ data }) {
+export default function SummaryCard({ data, className = '' }) {
   const { summary } = data
   const score = scoreHealth(summary)
   const color = scoreColor(score)
@@ -76,11 +77,15 @@ export default function SummaryCard({ data }) {
   const statusColor = { green: 'var(--green)', yellow: 'var(--yellow)', red: 'var(--red)' }
 
   return (
-    <Card style={{ gridColumn: '1 / -1' }}>
+    <Card className={className}>
+      <CardSection
+        title="repository summary"
+        finePrint={`aggregated · top ${CONTRIBUTORS} contributors · last ${CLOSED_PULL_REQUESTS} closed PRs · last ${CLOSED_ISSUES} closed issues`}
+      />
       <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap', alignItems: 'flex-start' }}>
 
         <div style={{ textAlign: 'center', minWidth: 120 }}>
-          <SectionLabel>health score</SectionLabel>
+          <CardSection title="health score" />
           <svg width="100" height="100" viewBox="0 0 100 100">
             <circle cx="50" cy="50" r="42" fill="none" stroke="var(--border)" strokeWidth="8" />
             <circle
@@ -100,7 +105,7 @@ export default function SummaryCard({ data }) {
         </div>
 
         <div style={{ flex: 1, minWidth: 280 }}>
-          <SectionLabel>key metrics</SectionLabel>
+          <CardSection title="key metrics" />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
             {metrics.map(m => (
               <div key={m.label} style={{
@@ -120,7 +125,7 @@ export default function SummaryCard({ data }) {
         </div>
 
         <div>
-          <SectionLabel>top contributors</SectionLabel>
+          <CardSection title="top contributors" finePrint={`from last ${CONTRIBUTORS} contributors`} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {summary.top_contributors.map((login, i) => (
               <a

@@ -15,7 +15,7 @@ export function Card({ children, className = '', style = {} }) {
   )
 }
 
-export function SectionLabel({ children }) {
+export function SectionLabel({ children, style = {} }) {
   return (
     <p style={{
       fontFamily: 'var(--font-mono)',
@@ -25,9 +25,42 @@ export function SectionLabel({ children }) {
       textTransform: 'uppercase',
       color: 'var(--text-muted)',
       marginBottom: '10px',
+      ...style,
     }}>
       {children}
     </p>
+  )
+}
+
+export function SampleFinePrint({ children }) {
+  return (
+    <span style={{
+      fontFamily: 'var(--font-mono)',
+      fontSize: '9px',
+      fontWeight: 400,
+      letterSpacing: '0.02em',
+      textTransform: 'none',
+      color: 'var(--text-muted)',
+      opacity: 0.9,
+    }}>
+      {children}
+    </span>
+  )
+}
+
+export function CardSection({ title, finePrint }) {
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'baseline',
+        flexWrap: 'wrap',
+        gap: '4px 8px',
+      }}>
+        <SectionLabel style={{ marginBottom: 0 }}>{title}</SectionLabel>
+        {finePrint ? <SampleFinePrint>{finePrint}</SampleFinePrint> : null}
+      </div>
+    </div>
   )
 }
 

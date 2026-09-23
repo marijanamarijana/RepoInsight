@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { analyzeRepo } from './utils/api'
+import { useTheme } from './hooks/useTheme'
 import SearchBar from './components/SearchBar'
 import OverviewCard from './components/OverviewCard'
 import HeartbeatCard from './components/HeartbeatCard'
@@ -17,6 +18,7 @@ export default function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [lastRepo, setLastRepo] = useState(null)
+  const { theme, toggleTheme } = useTheme()
 
   async function handleSubmit(repo, token) {
     setLoading(true)
@@ -54,9 +56,20 @@ export default function App() {
             RepoInsight
           </span>
         </div>
-        <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-          powered by GitHub API
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+            powered by GitHub API
+          </span>
+          <button
+            type="button"
+            className="theme-toggle"
+            onClick={toggleTheme}
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+          </button>
+        </div>
       </header>
 
       <div style={{
@@ -130,7 +143,7 @@ export default function App() {
 
         {error && (
           <div style={{
-            background: 'rgba(248,81,73,0.1)',
+            background: 'var(--error-bg)',
             border: '1px solid var(--red)',
             borderRadius: 'var(--radius-md)',
             padding: 20,
@@ -146,24 +159,17 @@ export default function App() {
         )}
 
         {data && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <OverviewCard data={data} />
-            <HeartbeatCard data={data} />
-            <SummaryCard data={data} />
-
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-              gap: 16,
-            }}>
-              <LanguagesCard data={data} />
-              <IssuesCard data={data} />
-              <PullRequestsCard data={data} />
-              <CommitsCard data={data} />
-              <ReleasesCard data={data} />
-              <CodeFrequencyCard data={data} />
-              <ContributorsCard data={data} />
-            </div>
+          <div className="dashboard-grid">
+            <OverviewCard data={data} className="dashboard-span-full" />
+            <HeartbeatCard data={data} theme={theme} className="dashboard-span-full" />
+            <SummaryCard data={data} className="dashboard-span-full" />
+            <LanguagesCard data={data} />
+            <IssuesCard data={data} />
+            <PullRequestsCard data={data} />
+            <CommitsCard data={data} />
+            <ReleasesCard data={data} />
+            <ContributorsCard data={data} />
+            <CodeFrequencyCard data={data} className="dashboard-span-full" />
           </div>
         )}
       </main>
@@ -189,6 +195,23 @@ function Logo() {
       <path d="M11 3 L19 7 L19 15 L11 19 L3 15 L3 7 Z" stroke="var(--blue)" strokeWidth="1.5" fill="none"/>
       <circle cx="11" cy="11" r="2.5" fill="var(--blue)"/>
       <line x1="11" y1="5" x2="11" y2="8.5" stroke="var(--blue)" strokeWidth="1.5"/>
+    </svg>
+  )
+}
+
+function SunIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+    </svg>
+  )
+}
+
+function MoonIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
     </svg>
   )
 }

@@ -1,5 +1,13 @@
 import React from 'react'
-import { Card, SectionLabel, Divider, Row } from './UI'
+import { Card, CardSection, Divider, Row } from './UI'
+import {
+  OPEN_ISSUES,
+  CLOSED_ISSUES,
+  ISSUE_LABELS,
+  OPEN_PULL_REQUESTS,
+  CLOSED_PULL_REQUESTS,
+  CLOSED_PR_FIRST_COMMENT_SAMPLE,
+} from '../constants/sampling'
 
 export function IssuesCard({ data }) {
   const { issues } = data
@@ -8,12 +16,15 @@ export function IssuesCard({ data }) {
 
   return (
     <Card>
-      <SectionLabel>issues</SectionLabel>
+      <CardSection
+        title="issues"
+        finePrint={`last ${OPEN_ISSUES} open · last ${CLOSED_ISSUES} closed · top ${ISSUE_LABELS} labels`}
+      />
 
       <div style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 6 }}>
           <span style={{ color: 'var(--green)' }}>● {issues.closed_sampled} closed</span>
-          <span style={{ color: 'var(--red)' }}>● {issues.open_count} open</span>
+          <span style={{ color: 'var(--red)' }}>● {issues.open_sampled} open</span>
         </div>
         <div style={{ height: 8, background: 'var(--red)', borderRadius: 4, overflow: 'hidden' }}>
           <div style={{ height: '100%', width: `${closedPct}%`, background: 'var(--green)', borderRadius: 4 }} />
@@ -60,7 +71,10 @@ export function PullRequestsCard({ data }) {
 
   return (
     <Card>
-      <SectionLabel>pull requests</SectionLabel>
+      <CardSection
+        title="pull requests"
+        finePrint={`last ${OPEN_PULL_REQUESTS} open · last ${CLOSED_PULL_REQUESTS} closed · first comment sample of ${CLOSED_PR_FIRST_COMMENT_SAMPLE}`}
+      />
 
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 16 }}>
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 40, fontWeight: 700, color: mergeColor, lineHeight: 1 }}>

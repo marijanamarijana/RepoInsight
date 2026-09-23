@@ -1,0 +1,11 @@
+export const RECENT_COMMITS = 100
+export const OPEN_ISSUES = 100
+export const CLOSED_ISSUES = 100
+export const OPEN_PULL_REQUESTS = 100
+export const CLOSED_PULL_REQUESTS = 100
+export const RELEASES = 20
+export const CONTRIBUTORS = 100
+export const REPOSITORY_TOPICS = 20
+export const LANGUAGES = 20
+export const ISSUE_LABELS = 20
+export const CLOSED_PR_FIRST_COMMENT_SAMPLE = 10

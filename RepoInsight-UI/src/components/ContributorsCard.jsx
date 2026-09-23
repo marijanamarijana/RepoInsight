@@ -1,5 +1,6 @@
 import React from 'react'
-import { Card, SectionLabel, Divider, MiniBar } from './UI'
+import { Card, CardSection, Divider, MiniBar } from './UI'
+import { CONTRIBUTORS } from '../constants/sampling'
 
 function busFactorColor(n) {
   if (n === 1) return 'var(--red)'
@@ -13,7 +14,7 @@ export default function ContributorsCard({ data }) {
 
   return (
     <Card>
-      <SectionLabel>contributors</SectionLabel>
+      <CardSection title="contributors" finePrint={`last ${CONTRIBUTORS} contributors`} />
 
       <div style={{ display: 'flex', gap: 20, marginBottom: 16 }}>
         <div>

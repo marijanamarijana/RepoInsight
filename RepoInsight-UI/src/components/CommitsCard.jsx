@@ -1,5 +1,6 @@
 import React from 'react'
-import { Card, SectionLabel, Row, Divider } from './UI'
+import { Card, CardSection, Row, Divider } from './UI'
+import { RECENT_COMMITS } from '../constants/sampling'
 
 export default function CommitsCard({ data }) {
   const { recent_commits: rc } = data
@@ -7,7 +8,7 @@ export default function CommitsCard({ data }) {
 
   return (
     <Card>
-      <SectionLabel>recent commits — {rc.total_sampled} sampled</SectionLabel>
+      <CardSection title="recent commits" finePrint={`last ${RECENT_COMMITS} commits`} />
 
       <div style={{ marginBottom: 16 }}>
         <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>commit hour (UTC)</div>

@@ -1,10 +1,20 @@
 import React, { useRef, useEffect } from 'react'
-import { Card, SectionLabel } from './UI'
+import { Card, CardSection } from './UI'
 
 const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 const DAY_FULL = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
-export default function HeartbeatCard({ data }) {
+function readChartColors() {
+  const root = getComputedStyle(document.documentElement)
+  return {
+    fillTop: root.getPropertyValue('--chart-fill-top').trim(),
+    fillBottom: root.getPropertyValue('--chart-fill-bottom').trim(),
+    line: root.getPropertyValue('--chart-line').trim(),
+    grid: root.getPropertyValue('--chart-grid').trim(),
+  }
+}
+
+export default function HeartbeatCard({ data, theme = 'dark', className = '' }) {
   const { commit_activity } = data
   const canvasRef = useRef(null)
   const weeks = commit_activity.weeks || []
@@ -26,9 +36,10 @@ export default function HeartbeatCard({ data }) {
       y: H - 8 - (v / peak) * (H - 20),
     }))
 
+    const colors = readChartColors()
     const grad = ctx.createLinearGradient(0, 0, 0, H)
-    grad.addColorStop(0, 'rgba(88,166,255,0.25)')
-    grad.addColorStop(1, 'rgba(88,166,255,0)')
+    grad.addColorStop(0, colors.fillTop || 'rgba(88,166,255,0.25)')
+    grad.addColorStop(1, colors.fillBottom || 'rgba(88,166,255,0)')
     ctx.beginPath()
     ctx.moveTo(points[0].x, H)
     points.forEach(p => ctx.lineTo(p.x, p.y))
@@ -37,7 +48,7 @@ export default function HeartbeatCard({ data }) {
     ctx.fillStyle = grad
     ctx.fill()
 
-    ctx.shadowColor = 'rgba(88,166,255,0.6)'
+    ctx.shadowColor = colors.line ? `${colors.line}99` : 'rgba(88,166,255,0.6)'
     ctx.shadowBlur = 12
     ctx.beginPath()
     ctx.moveTo(points[0].x, points[0].y)
@@ -47,7 +58,7 @@ export default function HeartbeatCard({ data }) {
       ctx.quadraticCurveTo(points[i].x, points[i].y, mx, my)
     }
     ctx.lineTo(points[n - 1].x, points[n - 1].y)
-    ctx.strokeStyle = '#58A6FF'
+    ctx.strokeStyle = colors.line || '#58A6FF'
     ctx.lineWidth = 2
     ctx.stroke()
     ctx.shadowBlur = 0
@@ -55,20 +66,20 @@ export default function HeartbeatCard({ data }) {
     ctx.beginPath()
     ctx.moveTo(0, H - 8)
     ctx.lineTo(W, H - 8)
-    ctx.strokeStyle = 'rgba(255,255,255,0.06)'
+    ctx.strokeStyle = colors.grid || 'rgba(255,255,255,0.06)'
     ctx.lineWidth = 1
     ctx.stroke()
-  }, [totals, peak])
+  }, [totals, peak, theme])
 
   const dayData = commit_activity.commits_by_day || {}
   const maxDay = Math.max(...Object.values(dayData), 1)
 
   return (
-    <Card style={{ gridColumn: '1 / -1' }}>
+    <Card className={className}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 24 }}>
 
         <div style={{ flex: 2, minWidth: 300 }}>
-          <SectionLabel>commit activity — 52 weeks</SectionLabel>
+          <CardSection title="commit activity" finePrint="52 weeks · GitHub stats API" />
           <div style={{ position: 'relative' }}>
             <canvas
               ref={canvasRef}
@@ -85,7 +96,7 @@ export default function HeartbeatCard({ data }) {
         </div>
 
         <div style={{ flex: 1, minWidth: 180 }}>
-          <SectionLabel>by day of week</SectionLabel>
+          <CardSection title="by day of week" finePrint="from sampled commit history" />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {DAY_FULL.map((day) => {
               const count = dayData[day] ?? 0

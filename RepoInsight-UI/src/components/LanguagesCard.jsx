@@ -1,5 +1,6 @@
 import React from 'react'
-import { Card, SectionLabel } from './UI'
+import { Card, CardSection } from './UI'
+import { LANGUAGES } from '../constants/sampling'
 
 const LANGUAGE_COLORS = {
   JavaScript: '#f1e05a',
@@ -32,7 +33,7 @@ export default function LanguagesCard({ data }) {
 
   return (
     <Card>
-      <SectionLabel>languages</SectionLabel>
+      <CardSection title="languages" finePrint={`top ${LANGUAGES} languages by bytes`} />
 
       {entries.length === 0 ? (
         <div
