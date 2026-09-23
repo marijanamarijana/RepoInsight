@@ -114,7 +114,6 @@ async def run_full_analysis(client: GitHubClient, owner: str, repo: str) -> Full
         summary=summary,
     )
 
-
 def parse_repository_overview(data: dict[str, Any]) -> RepoOverview:
     repo = data["repository"]
     pushed_at = repo["pushedAt"]
@@ -135,7 +134,7 @@ def parse_repository_overview(data: dict[str, Any]) -> RepoOverview:
         watchers=repo["watchers"]["totalCount"],
         default_branch=(
             repo["defaultBranchRef"]["name"]
-            if repo.get("defaultBranchRef")
+            if repo.get("defaultBranchRef") and repo["defaultBranchRef"]["name"] is not None
             else None
         ),
         primary_language=(
@@ -155,6 +154,7 @@ def parse_repository_overview(data: dict[str, Any]) -> RepoOverview:
         is_fork=repo["isFork"],
         topics=topics,
     )
+
 
 def parse_languages(data: dict[str, Any]) -> LanguageBreakdown:
     edges = data["repository"]["languages"]["edges"]
