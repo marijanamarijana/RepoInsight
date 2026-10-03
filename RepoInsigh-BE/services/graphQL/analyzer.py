@@ -1,16 +1,10 @@
 from __future__ import annotations
 import asyncio
-import logging
 from collections import Counter
-from datetime import datetime, timezone
 from typing import Any
 from models.analysis import (
-    CodeFrequencyAnalysis,
-    CodeFrequencyWeek,
-    CommitActivityAnalysis,
     CommitHourBucket,
     ContributorAnalysis,
-    ContributorEntry,
     FullAnalysis,
     IssuesAnalysis,
     LabelEntry,
@@ -22,50 +16,29 @@ from models.analysis import (
     ReleasesAnalysis,
     RecentCommitsAnalysis,
     RepoOverview,
-    RepoSummary,
-    WeeklyActivity,
+)
+from services.analysis_common import (
+    STALE_ISSUE_DAYS,
+    build_summary,
+    contributor_analysis_from_raw,
+    fetch_code_frequency,
+    fetch_commit_activity,
+    gini,
+    median,
+    parse_dt,
+    sparkline,
+    utc_now,
 )
 from services.analysis_sampling import CLOSED_PR_FIRST_COMMENT_SAMPLE, CONTRIBUTORS
 from services.graphQL.github_client import GitHubClient
 from services.graphQL.query_for_graphQL_full_analysis import REPOSITORY_ANALYSIS_QUERY
 
-logger = logging.getLogger(__name__)
+_parse_dt = parse_dt
+_now = utc_now
+_median = median
+_gini = gini
+_sparkline = sparkline
 
-DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-SPARKLINE_BLOCKS = " ▁▂▃▄▅▆▇█"
-TEST_PATTERNS = ["-test.", ".test.", ".spec.", "__tests__", "/test/", "/tests/", "_test."]
-
-
-def _parse_dt(s: str) -> datetime:
-    return datetime.fromisoformat(s.replace("Z", "+00:00"))
-
-
-def _now() -> datetime:
-    return datetime.now(timezone.utc)
-
-
-def _median(values: list[float]) -> float | None:
-    if not values:
-        return None
-    s = sorted(values)
-    mid = len(s) // 2
-    return s[mid] if len(s) % 2 else (s[mid - 1] + s[mid]) / 2
-
-
-def _gini(values: list[int]) -> float:
-    if not values:
-        return 0.0
-    vals = sorted(values)
-    n = len(vals)
-    if n == 0 or sum(vals) == 0:
-        return 0.0
-    csum = sum((2 * (i + 1) - n - 1) * v for i, v in enumerate(vals))
-    return round(csum / (n * sum(vals)), 4)
-
-
-def _sparkline(totals: list[int]) -> str:
-    peak = max(totals) if totals else 1
-    return "".join(SPARKLINE_BLOCKS[int(t / peak * 8)] for t in totals)
 
 async def fetch_rate_limit(client: GitHubClient) -> RateLimitStatus:
     data = await client.rate_limit()
@@ -77,6 +50,7 @@ async def fetch_rate_limit(client: GitHubClient) -> RateLimitStatus:
         used=data["used"],
         reset_at=reset_at,
     )
+
 
 async def run_full_analysis(client: GitHubClient, owner: str, repo: str) -> FullAnalysis:
     graphql_data = await client.graphql(
@@ -90,15 +64,16 @@ async def run_full_analysis(client: GitHubClient, owner: str, repo: str) -> Full
     overview = parse_repository_overview(graphql_data)
     languages = parse_languages(graphql_data)
     recent_commits = parse_recent_commits(graphql_data)
-    issues = parse_issues(graphql_data, overview,)
+    issues = parse_issues(graphql_data, overview)
     pull_requests = parse_pull_requests(graphql_data)
     releases = parse_releases(graphql_data)
 
-    (contributors, commit_activity, code_frequency,) = await asyncio.gather(fetch_contributors(client, owner, repo,),
-                                                                            fetch_commit_activity(client, owner, repo,),
-                                                                            fetch_code_frequency(client, owner, repo,),
-                                                                            return_exceptions=False)
-
+    contributors, commit_activity, code_frequency = await asyncio.gather(
+        fetch_contributors(client, owner, repo),
+        fetch_commit_activity(client, owner, repo),
+        fetch_code_frequency(client, owner, repo),
+        return_exceptions=False,
+    )
 
     summary = build_summary(overview, contributors, pull_requests, issues, releases)
 
@@ -115,11 +90,12 @@ async def run_full_analysis(client: GitHubClient, owner: str, repo: str) -> Full
         summary=summary,
     )
 
+
 def parse_repository_overview(data: dict[str, Any]) -> RepoOverview:
     repo = data["repository"]
     pushed_at = repo["pushedAt"]
-    last_push = _parse_dt(pushed_at)
-    days_idle = (_now() - last_push).days
+    last_push = parse_dt(pushed_at)
+    days_idle = (utc_now() - last_push).days
 
     topics = [
         node["topic"]["name"]
@@ -180,6 +156,7 @@ def parse_languages(data: dict[str, Any]) -> LanguageBreakdown:
         languages=entries,
     )
 
+
 def parse_recent_commits(data: dict[str, Any]) -> RecentCommitsAnalysis:
     repo = data["repository"]
     branch = repo.get("defaultBranchRef")
@@ -220,7 +197,7 @@ def parse_recent_commits(data: dict[str, Any]) -> RecentCommitsAnalysis:
             continue
 
         try:
-            dt = _parse_dt(date_str)
+            dt = parse_dt(date_str)
             hour_counter[dt.hour] += 1
         except Exception:
             pass
@@ -248,6 +225,7 @@ def parse_recent_commits(data: dict[str, Any]) -> RecentCommitsAnalysis:
         peak_hour_utc=peak_hour,
     )
 
+
 def parse_issues(data: dict[str, Any], overview: RepoOverview) -> IssuesAnalysis:
     repo = data["repository"]
     open_issues = repo["openIssues"]["nodes"]
@@ -257,8 +235,8 @@ def parse_issues(data: dict[str, Any], overview: RepoOverview) -> IssuesAnalysis
     for issue in closed_issues:
         if issue.get("closedAt") and issue.get("createdAt"):
             diff = (
-                _parse_dt(issue["closedAt"])
-                - _parse_dt(issue["createdAt"])
+                parse_dt(issue["closedAt"])
+                - parse_dt(issue["createdAt"])
             ).total_seconds()
 
             close_times.append(diff / 3600)
@@ -270,7 +248,7 @@ def parse_issues(data: dict[str, Any], overview: RepoOverview) -> IssuesAnalysis
     )
 
     med_close = (
-        round((_median(close_times) or 0) / 24, 2)
+        round((median(close_times) or 0) / 24, 2)
         if close_times
         else None
     )
@@ -279,9 +257,9 @@ def parse_issues(data: dict[str, Any], overview: RepoOverview) -> IssuesAnalysis
         issue
         for issue in open_issues
         if (
-            _now()
-            - _parse_dt(issue["updatedAt"])
-        ).days > 90
+            utc_now()
+            - parse_dt(issue["updatedAt"])
+        ).days > STALE_ISSUE_DAYS
     ]
 
     label_counter: Counter[str] = Counter()
@@ -297,7 +275,7 @@ def parse_issues(data: dict[str, Any], overview: RepoOverview) -> IssuesAnalysis
         avg_close_time_days=avg_close,
         median_close_time_days=med_close,
         stale_issues_count=len(stale),
-        stale_threshold_days=90,
+        stale_threshold_days=STALE_ISSUE_DAYS,
         top_labels=[
             LabelEntry(name=name, count=count)
             for name, count
@@ -338,8 +316,8 @@ def parse_pull_requests(data: dict[str, Any]) -> PullRequestsAnalysis:
             continue
 
         diff = (
-            _parse_dt(pr["mergedAt"])
-            - _parse_dt(pr["createdAt"])
+            parse_dt(pr["mergedAt"])
+            - parse_dt(pr["createdAt"])
         ).total_seconds()
 
         merge_times.append(diff / 3600)
@@ -351,7 +329,7 @@ def parse_pull_requests(data: dict[str, Any]) -> PullRequestsAnalysis:
     )
 
     med_merge = (
-        round((_median(merge_times) or 0) / 24, 2)
+        round((median(merge_times) or 0) / 24, 2)
         if merge_times
         else None
     )
@@ -365,8 +343,8 @@ def parse_pull_requests(data: dict[str, Any]) -> PullRequestsAnalysis:
 
         first_comment = comments[0]
         diff = (
-            _parse_dt(first_comment["createdAt"])
-            - _parse_dt(pr["createdAt"])
+            parse_dt(first_comment["createdAt"])
+            - parse_dt(pr["createdAt"])
         ).total_seconds()
 
         response_times.append(diff / 3600)
@@ -388,6 +366,7 @@ def parse_pull_requests(data: dict[str, Any]) -> PullRequestsAnalysis:
         avg_first_response_hours=avg_response,
     )
 
+
 def parse_releases(data: dict[str, Any]) -> ReleasesAnalysis:
     raw = data["repository"]["releases"]["nodes"]
 
@@ -405,7 +384,7 @@ def parse_releases(data: dict[str, Any]) -> ReleasesAnalysis:
 
     if len(entries) >= 2:
         dates = [
-            _parse_dt(e.published_at)
+            parse_dt(e.published_at)
             for e in entries
         ]
 
@@ -426,157 +405,10 @@ def parse_releases(data: dict[str, Any]) -> ReleasesAnalysis:
         slowest_gap_days=max(gaps) if gaps else None,
     )
 
+
 async def fetch_contributors(client: GitHubClient, owner: str, repo: str) -> ContributorAnalysis:
     raw = await client.get(
         f"/repos/{owner}/{repo}/contributors",
         params={"per_page": CONTRIBUTORS},
     )
-    raw = raw[:CONTRIBUTORS]
-    total_commits = (sum(c["contributions"] for c in raw) or 1)
-
-    entries = [
-        ContributorEntry(
-            login=c["login"],
-            avatar_url=c["avatar_url"],
-            contributions=c["contributions"],
-            percentage=round(c["contributions"]/ total_commits * 100, 2),
-        )
-        for c in raw
-    ]
-
-    cumulative = 0
-    bus_factor = 0
-
-    for c in raw:
-        cumulative += c["contributions"]
-        bus_factor += 1
-
-        if cumulative / total_commits >= 0.8:
-            break
-
-    ownership: dict[str, int] = {}
-
-    for pct in (50, 80, 95):
-        cum = 0
-        count = 0
-        for c in raw:
-            cum += c["contributions"]
-            count += 1
-            if cum / total_commits >= pct / 100:
-                break
-        ownership[f"{pct}%"] = count
-
-    return ContributorAnalysis(
-        total_contributors_fetched=len(raw),
-        total_commits_sampled=total_commits,
-        bus_factor=bus_factor,
-        gini_coefficient=_gini([c["contributions"] for c in raw]),
-        top_contributors=entries[:15],
-        ownership=ownership,
-    )
-
-async def fetch_commit_activity(client: GitHubClient, owner: str, repo: str) -> CommitActivityAnalysis:
-    raw = await client.get(f"/repos/{owner}/{repo}/stats/commit_activity")
-
-    if not raw:
-        return CommitActivityAnalysis(
-            sparkline="",
-            peak_week_commits=0,
-            avg_commits_per_week=0,
-            weeks=[],
-            commits_by_day={},
-        )
-
-    totals = [w["total"] for w in raw]
-    day_totals = [sum(w["days"][i] for w in raw) for i in range(7)]
-
-    weeks = [
-        WeeklyActivity(
-            week_start=datetime.utcfromtimestamp(
-                w["week"]
-            ).strftime("%Y-%m-%d"),
-
-            total=w["total"],
-            days=w["days"],
-        )
-        for w in raw
-    ]
-
-    return CommitActivityAnalysis(
-        sparkline=_sparkline(totals),
-        peak_week_commits=max(totals),
-        avg_commits_per_week=round(sum(totals) / len(totals), 2),
-        weeks=weeks,
-        commits_by_day={
-            name: count
-            for name, count
-            in zip(DAY_NAMES, day_totals)
-        },
-    )
-
-async def fetch_code_frequency(client: GitHubClient,  owner: str, repo: str) -> CodeFrequencyAnalysis:
-    try:
-        raw = await client.get(f"/repos/{owner}/{repo}/stats/code_frequency")
-    except Exception as exc:
-        logger.warning(
-            "fetch_code_frequency failed for %s/%s: %s",
-            owner,
-            repo,
-            exc,
-        )
-
-        return CodeFrequencyAnalysis(
-            total_additions=0,
-            total_deletions=0,
-            net_lines=0,
-            recent_weeks=[],
-        )
-
-    if not raw:
-        return CodeFrequencyAnalysis(
-            total_additions=0,
-            total_deletions=0,
-            net_lines=0,
-            recent_weeks=[],
-        )
-
-    total_add = sum(w[1] for w in raw if w[1] > 0)
-    total_del = sum(abs(w[2]) for w in raw if w[2] < 0)
-
-    recent = [
-        CodeFrequencyWeek(
-            week_start=datetime.utcfromtimestamp(
-                w[0]
-            ).strftime("%Y-%m-%d"),
-            additions=w[1],
-            deletions=abs(w[2]),)
-        for w in raw[-12:]
-    ]
-
-    return CodeFrequencyAnalysis(
-        total_additions=total_add,
-        total_deletions=total_del,
-        net_lines=total_add - total_del,
-        recent_weeks=recent,
-    )
-
-def build_summary(overview: RepoOverview,
-                contributors: ContributorAnalysis,
-                pull_requests: PullRequestsAnalysis,
-                issues: IssuesAnalysis,
-                releases: ReleasesAnalysis ) -> RepoSummary:
-    return RepoSummary(
-        repo=overview.full_name,
-        stars=overview.stars,
-        forks=overview.forks,
-        open_issues=overview.open_issues,
-        days_since_last_push=overview.days_since_last_push,
-        primary_language=overview.primary_language,
-        bus_factor=contributors.bus_factor,
-        gini_coefficient=contributors.gini_coefficient,
-        pr_merge_rate_pct=pull_requests.merge_rate_pct,
-        avg_pr_merge_days=pull_requests.avg_time_to_merge_days,
-        avg_issue_close_days=issues.avg_close_time_days,
-        total_releases=releases.total_fetched,
-        top_contributors=[c.login for c in contributors.top_contributors[:5]],
-    )
+    return contributor_analysis_from_raw(raw[:CONTRIBUTORS])
