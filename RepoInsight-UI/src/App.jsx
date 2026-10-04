@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { analyzeRepo } from './utils/api'
+import { analyzeRepo, fetchAiInsights } from './utils/api'
+import AiAnalysisCard from './components/AiAnalysisCard'
 import { useTheme } from './hooks/useTheme'
 import SearchBar from './components/SearchBar'
 import OverviewCard from './components/OverviewCard'
@@ -11,13 +12,17 @@ import { ReleasesCard, CodeFrequencyCard } from './components/ReleasesCodeCard'
 import SummaryCard from './components/SummaryCard'
 import LanguagesCard from "./components/LanguagesCard";
 
-const EXAMPLES = ['react/react', 'microsoft/vscode', 'vercel/next.js']
+const EXAMPLES = ['react/react', 'Microsoft365DSC/Microsoft365DSC', 'vercel/next.js', 'tensorflow/tensorflow']
 
 export default function App() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [lastRepo, setLastRepo] = useState(null)
+  const [lastToken, setLastToken] = useState('')
+  const [aiInsight, setAiInsight] = useState(null)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiError, setAiError] = useState(null)
   const { theme, toggleTheme } = useTheme()
 
   async function handleSubmit(repo, token) {
@@ -25,6 +30,9 @@ export default function App() {
     setError(null)
     setData(null)
     setLastRepo(repo)
+    setLastToken(token ?? '')
+    setAiInsight(null)
+    setAiError(null)
     try {
       const result = await analyzeRepo(repo, token)
       setData(result)
@@ -32,6 +40,21 @@ export default function App() {
       setError(err.message)
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleAiAnalysis() {
+    if (!lastRepo) return
+    setAiLoading(true)
+    setAiError(null)
+    try {
+      const result = await fetchAiInsights(lastRepo, lastToken)
+      setAiInsight(result)
+    } catch (err) {
+      setAiError(err.message)
+      setAiInsight(null)
+    } finally {
+      setAiLoading(false)
     }
   }
 
@@ -163,6 +186,13 @@ export default function App() {
             <OverviewCard data={data} className="dashboard-span-full" />
             <HeartbeatCard data={data} theme={theme} className="dashboard-span-full" />
             <SummaryCard data={data} className="dashboard-span-full" />
+            <AiAnalysisCard
+              insight={aiInsight}
+              error={aiError}
+              loading={aiLoading}
+              onRun={handleAiAnalysis}
+              disabled={!data}
+            />
             <LanguagesCard data={data} />
             <IssuesCard data={data} />
             <PullRequestsCard data={data} />
