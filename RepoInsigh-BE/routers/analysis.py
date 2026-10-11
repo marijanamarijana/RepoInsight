@@ -1,14 +1,17 @@
 """
 Analysis router.
 
-All endpoints accept an optional `token` query param so users can supply
-their own GitHub token per-request. Falls back to the server's GITHUB_TOKEN.
+All endpoints accept an optional `Authorization: Bearer <token>` header so
+users can supply their own GitHub token per-request. Falls back to the
+server's GITHUB_TOKEN.
 """
 from __future__ import annotations
 
-from typing import Annotated, Optional
+from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query
+
+from deps import TokenDep
 
 from models.analysis import (
     CodeFrequencyAnalysis,
@@ -42,8 +45,6 @@ from services.github_client import GitHubClient
 
 router = APIRouter(prefix="/analyze", tags=["analysis"])
 
-TokenDep = Annotated[Optional[str], Query(description="GitHub personal access token")]
-
 
 def _owner_repo(repo_url_or_slug: str) -> tuple[str, str]:
     """
@@ -72,7 +73,7 @@ async def _client_ctx(token: str | None):
 @router.get("/full", response_model=FullAnalysis, summary="Full repo analysis")
 async def full_analysis(
     repo: Annotated[str, Query(description="owner/repo or full GitHub URL")],
-    token: TokenDep = None,
+    token: TokenDep,
 ):
     owner, repo_name = _owner_repo(repo)
     async with GitHubClient(token=token) as client:
@@ -85,7 +86,7 @@ async def full_analysis(
 @router.get("/overview", response_model=RepoOverview)
 async def overview(
     repo: Annotated[str, Query()],
-    token: TokenDep = None,
+    token: TokenDep,
 ):
     owner, repo_name = _owner_repo(repo)
     async with GitHubClient(token=token) as client:
@@ -98,7 +99,7 @@ async def overview(
 @router.get("/languages", response_model=LanguageBreakdown)
 async def languages(
     repo: Annotated[str, Query()],
-    token: TokenDep = None,
+    token: TokenDep,
 ):
     owner, repo_name = _owner_repo(repo)
     async with GitHubClient(token=token) as client:
@@ -111,7 +112,7 @@ async def languages(
 @router.get("/contributors", response_model=ContributorAnalysis)
 async def contributors(
     repo: Annotated[str, Query()],
-    token: TokenDep = None,
+    token: TokenDep,
 ):
     owner, repo_name = _owner_repo(repo)
     async with GitHubClient(token=token) as client:
@@ -124,7 +125,7 @@ async def contributors(
 @router.get("/commit-activity", response_model=CommitActivityAnalysis)
 async def commit_activity(
     repo: Annotated[str, Query()],
-    token: TokenDep = None,
+    token: TokenDep,
 ):
     owner, repo_name = _owner_repo(repo)
     async with GitHubClient(token=token) as client:
@@ -137,7 +138,7 @@ async def commit_activity(
 @router.get("/recent-commits", response_model=RecentCommitsAnalysis)
 async def recent_commits(
     repo: Annotated[str, Query()],
-    token: TokenDep = None,
+    token: TokenDep,
 ):
     owner, repo_name = _owner_repo(repo)
     async with GitHubClient(token=token) as client:
@@ -150,7 +151,7 @@ async def recent_commits(
 @router.get("/issues", response_model=IssuesAnalysis)
 async def issues(
     repo: Annotated[str, Query()],
-    token: TokenDep = None,
+    token: TokenDep,
 ):
     owner, repo_name = _owner_repo(repo)
     async with GitHubClient(token=token) as client:
@@ -164,7 +165,7 @@ async def issues(
 @router.get("/pull-requests", response_model=PullRequestsAnalysis)
 async def pull_requests(
     repo: Annotated[str, Query()],
-    token: TokenDep = None,
+    token: TokenDep,
 ):
     owner, repo_name = _owner_repo(repo)
     async with GitHubClient(token=token) as client:
@@ -177,7 +178,7 @@ async def pull_requests(
 @router.get("/releases", response_model=ReleasesAnalysis)
 async def releases(
     repo: Annotated[str, Query()],
-    token: TokenDep = None,
+    token: TokenDep,
 ):
     owner, repo_name = _owner_repo(repo)
     async with GitHubClient(token=token) as client:
@@ -190,7 +191,7 @@ async def releases(
 @router.get("/code-frequency", response_model=CodeFrequencyAnalysis)
 async def code_frequency(
     repo: Annotated[str, Query()],
-    token: TokenDep = None,
+    token: TokenDep,
 ):
     owner, repo_name = _owner_repo(repo)
     async with GitHubClient(token=token) as client:
@@ -203,7 +204,7 @@ async def code_frequency(
 @router.get("/summary", response_model=RepoSummary)
 async def summary(
     repo: Annotated[str, Query()],
-    token: TokenDep = None,
+    token: TokenDep,
 ):
     owner, repo_name = _owner_repo(repo)
     async with GitHubClient(token=token) as client:
@@ -215,7 +216,7 @@ async def summary(
 
 
 @router.get("/rate-limit", response_model=RateLimitStatus, tags=["meta"])
-async def rate_limit(token: TokenDep = None):
+async def rate_limit(token: TokenDep):
     async with GitHubClient(token=token) as client:
         return await fetch_rate_limit(client)
 

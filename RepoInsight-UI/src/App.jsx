@@ -14,27 +14,38 @@ import LanguagesCard from "./components/LanguagesCard";
 
 const EXAMPLES = ['react/react', 'Microsoft365DSC/Microsoft365DSC', 'vercel/next.js', 'tensorflow/tensorflow']
 
+const TOKEN_KEY = 'repoinsight-github-token'
+
 export default function App() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [repo, setRepo] = useState('')
+  const [token, setToken] = useState(() => sessionStorage.getItem(TOKEN_KEY) || '')
   const [lastRepo, setLastRepo] = useState(null)
-  const [lastToken, setLastToken] = useState('')
   const [aiInsight, setAiInsight] = useState(null)
   const [aiLoading, setAiLoading] = useState(false)
   const [aiError, setAiError] = useState(null)
   const { theme, toggleTheme } = useTheme()
 
-  async function handleSubmit(repo, token) {
+  function handleTokenChange(next) {
+    setToken(next)
+    if (next) sessionStorage.setItem(TOKEN_KEY, next)
+    else sessionStorage.removeItem(TOKEN_KEY)
+  }
+
+  async function handleSubmit(nextRepo) {
+    const slug = (nextRepo ?? repo).trim()
+    if (!slug) return
+    setRepo(slug)
     setLoading(true)
     setError(null)
     setData(null)
-    setLastRepo(repo)
-    setLastToken(token ?? '')
+    setLastRepo(slug)
     setAiInsight(null)
     setAiError(null)
     try {
-      const result = await analyzeRepo(repo, token)
+      const result = await analyzeRepo(slug, token.trim())
       setData(result)
     } catch (err) {
       setError(err.message)
@@ -48,7 +59,7 @@ export default function App() {
     setAiLoading(true)
     setAiError(null)
     try {
-      const result = await fetchAiInsights(lastRepo, lastToken)
+      const result = await fetchAiInsights(lastRepo, token.trim())
       setAiInsight(result)
     } catch (err) {
       setAiError(err.message)
@@ -123,7 +134,15 @@ export default function App() {
           </>
         )}
 
-        <SearchBar onSubmit={handleSubmit} loading={loading} />
+        <SearchBar
+          repo={repo}
+          onRepoChange={setRepo}
+          token={token}
+          onTokenChange={handleTokenChange}
+          onSubmit={handleSubmit}
+          loading={loading}
+          compact={!!data}
+        />
 
         {!data && !loading && (
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center', marginTop: 8 }}>
@@ -131,7 +150,7 @@ export default function App() {
             {EXAMPLES.map(r => (
               <button
                 key={r}
-                onClick={() => handleSubmit(r, '')}
+                onClick={() => handleSubmit(r)}
                 style={{
                   background: 'var(--bg-card)',
                   border: '1px solid var(--border)',

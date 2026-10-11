@@ -29,7 +29,7 @@ async def root():
         "service": "Git Repo Analyzer",
         "version": "0.1.0",
         "docs": "/docs",
-        "usage": "GET /analyze/full?repo=facebook/react&token=ghp_...",
+        "usage": "GET /analyze/full?repo=facebook/react  (optional Authorization: Bearer ghp_...)",
     }
 
 

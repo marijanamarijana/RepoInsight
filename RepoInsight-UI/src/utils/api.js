@@ -4,7 +4,7 @@ const BASE = `${API_ROOT}/graphQL`
 export async function analyzeRepo(repo, token) {
   const params = new URLSearchParams({ repo })
   if (token) params.set('token', token)
-  const res = await fetch(`${BASE}/analyze/full?${params}`)
+  const res = await fetch(`${API_ROOT}/analyze/full?${params}`)
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.detail ?? `HTTP ${res.status}`)

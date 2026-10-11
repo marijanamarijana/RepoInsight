@@ -1,119 +1,67 @@
 import React, { useState } from 'react'
 
-export default function SearchBar({ onSubmit, loading }) {
-  const [repo, setRepo] = useState('')
-  const [token, setToken] = useState('')
+export default function SearchBar({ repo, onRepoChange, token, onTokenChange, onSubmit, loading, compact }) {
   const [showToken, setShowToken] = useState(false)
 
   function handleSubmit(e) {
     e.preventDefault()
-    if (repo.trim()) onSubmit(repo.trim(), token.trim())
+    if (repo.trim()) onSubmit(repo.trim())
   }
 
   return (
-    <form onSubmit={handleSubmit} style={{ width: '100%', maxWidth: 680 }}>
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        background: 'var(--bg-card)',
-        border: '1px solid var(--border)',
-        borderRadius: 'var(--radius-md)',
-        padding: '4px 4px 4px 16px',
-        boxShadow: '0 0 0 1px transparent',
-        transition: 'box-shadow 0.2s, border-color 0.2s',
-        gap: 8,
-      }}
-      onFocus={e => e.currentTarget.style.borderColor = 'var(--border-focus)'}
-      onBlur={e => e.currentTarget.style.borderColor = 'var(--border)'}
-      >
-        <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', fontSize: 13, userSelect: 'none' }}>
-          $
-        </span>
+    <form onSubmit={handleSubmit} className="search-shell">
+      <div className="search-row">
+        <span className="search-prompt">$</span>
         <input
+          className="search-input"
           value={repo}
-          onChange={e => setRepo(e.target.value)}
-          placeholder="facebook/react  or  https://github.com/owner/repo"
+          onChange={e => onRepoChange(e.target.value)}
+          placeholder="owner/repo  or  https://github.com/owner/repo"
           disabled={loading}
-          style={{
-            flex: 1,
-            background: 'transparent',
-            border: 'none',
-            outline: 'none',
-            color: 'var(--text-primary)',
-            fontFamily: 'var(--font-mono)',
-            fontSize: 14,
-            padding: '8px 0',
-          }}
+          aria-label="GitHub repository"
         />
         <button
           type="submit"
+          className="search-submit"
           disabled={loading || !repo.trim()}
-          style={{
-            background: loading ? 'var(--border)' : 'var(--blue)',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 'var(--radius-sm)',
-            padding: '8px 18px',
-            fontFamily: 'var(--font-ui)',
-            fontWeight: 600,
-            fontSize: 13,
-            cursor: loading || !repo.trim() ? 'not-allowed' : 'pointer',
-            transition: 'background 0.15s',
-            whiteSpace: 'nowrap',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-          }}
         >
           {loading ? <Spinner /> : null}
           {loading ? 'Analyzing…' : 'Analyze'}
         </button>
       </div>
 
-      <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
-        <button
-          type="button"
-          onClick={() => setShowToken(v => !v)}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: 'var(--text-muted)',
-            cursor: 'pointer',
-            fontFamily: 'var(--font-mono)',
-            fontSize: 11,
-            padding: 0,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4,
-          }}
-        >
-          <span style={{ fontSize: 10 }}>{showToken ? '▼' : '▶'}</span>
-          GitHub token (recommended)
-        </button>
-
-        {showToken && (
+      <div className="token-field">
+        <label className="token-label" htmlFor="github-token">
+          GitHub token <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(optional)</span>
+        </label>
+        <div className="token-row">
           <input
-            type="password"
+            id="github-token"
+            className="token-input"
+            type={showToken ? 'text' : 'password'}
             value={token}
-            onChange={e => setToken(e.target.value)}
-            placeholder="ghp_…"
-            style={{
-              flex: 1,
-              background: 'var(--bg-input)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-sm)',
-              padding: '4px 10px',
-              color: 'var(--text-primary)',
-              fontFamily: 'var(--font-mono)',
-              fontSize: 12,
-              outline: 'none',
-            }}
+            onChange={e => onTokenChange(e.target.value)}
+            placeholder="Paste a personal access token"
+            autoComplete="off"
+            spellCheck={false}
+            aria-describedby={compact ? undefined : 'github-token-hint'}
           />
-        )}
-        {!showToken && (
-          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-            Without a token: 60 req/hr limit. With token: 5,000/hr.
-          </span>
+          <button
+            type="button"
+            className="token-toggle"
+            onClick={() => setShowToken(v => !v)}
+            aria-pressed={showToken}
+          >
+            {showToken ? 'Hide' : 'Show'}
+          </button>
+        </div>
+        {!compact && (
+          <p id="github-token-hint" className="token-hint">
+            Optional, and only kept in this browser tab. A token lets GitHub return fuller data.{' '}
+            <a href="https://github.com/settings/tokens" target="_blank" rel="noreferrer">
+              Create a token
+            </a>
+          </p>
         )}
       </div>
     </form>

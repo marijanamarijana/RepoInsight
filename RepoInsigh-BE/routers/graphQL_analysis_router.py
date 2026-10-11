@@ -1,6 +1,7 @@
 from __future__ import annotations
-from typing import Annotated, Optional
+from typing import Annotated
 from fastapi import APIRouter, HTTPException, Query
+from deps import TokenDep
 from models.analysis import FullAnalysis, RateLimitStatus
 from services.full_analysis import run_full_analysis
 from services.graphQL.analyzer import fetch_rate_limit
@@ -10,11 +11,6 @@ router = APIRouter(
     prefix="/graphQL/analyze",
     tags=["analysis"],
 )
-
-TokenDep = Annotated[
-    Optional[str],
-    Query(description="GitHub personal access token"),
-]
 
 def _owner_repo(repo_url_or_slug: str) -> tuple[str, str]:
     """
@@ -63,7 +59,7 @@ async def full_analysis(
             description="owner/repo or full GitHub URL"
         ),
     ],
-    token: TokenDep = None,
+    token: TokenDep,
 ):
     owner, repo_name = _owner_repo(repo)
 
@@ -83,7 +79,7 @@ async def full_analysis(
     response_model=RateLimitStatus,
     tags=["meta"],
 )
-async def rate_limit(token: TokenDep = None):
+async def rate_limit(token: TokenDep):
     async with GitHubClient(token=token) as client:
         try:
             return await fetch_rate_limit(client)
